@@ -3,26 +3,22 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useData } from '../../contexts/DataContext';
-import { Search, Filter, Download } from 'lucide-react';
+import { Search, Package, FileText, TrendingUp, Users } from 'lucide-react';
 
 interface DataTableProps {
   userRole?: string;
 }
 
 const DataTable: React.FC<DataTableProps> = ({ userRole }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('skus');
   const { skus, claims, sales, dealers } = useData();
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredSKUs = skus.filter(sku =>
+  const filteredSKUs = skus.filter(sku => 
     sku.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     sku.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sku.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sku.warehouse.toLowerCase().includes(searchTerm.toLowerCase())
+    sku.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const filteredClaims = claims.filter(claim =>
@@ -34,224 +30,227 @@ const DataTable: React.FC<DataTableProps> = ({ userRole }) => {
   const filteredSales = sales.filter(sale =>
     sale.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     sale.dealerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sale.skuName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sale.region.toLowerCase().includes(searchTerm.toLowerCase())
+    sale.skuName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const filteredDealers = dealers.filter(dealer =>
     dealer.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     dealer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    dealer.city.toLowerCase().includes(searchTerm.toLowerCase())
+    dealer.region.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      'Pending': 'outline',
+      'Pending': 'secondary',
       'Approved': 'default',
       'Rejected': 'destructive',
       'Active': 'default',
       'Inactive': 'secondary'
     };
-    
     return <Badge variant={variants[status] || 'outline'}>{status}</Badge>;
   };
 
-  const exportData = (data: any[], filename: string) => {
-    const csvContent = [
-      Object.keys(data[0]).join(','),
-      ...data.map(row => Object.values(row).join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${filename}.csv`;
-    a.click();
-  };
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Data Management</CardTitle>
-        <CardDescription>
-          View and search through inventory, claims, sales, and dealer data
-        </CardDescription>
-        
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+    <div className="space-y-6">
+      {/* Search */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search data..."
+              placeholder="Search across all data..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Filter className="w-4 h-4 mr-2" />
-              Filter
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                const dataMap = {
-                  skus: filteredSKUs,
-                  claims: filteredClaims,
-                  sales: filteredSales,
-                  dealers: filteredDealers
-                };
-                exportData(dataMap[activeTab as keyof typeof dataMap], activeTab);
-              }}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="skus">SKUs ({filteredSKUs.length})</TabsTrigger>
-            <TabsTrigger value="claims">Claims ({filteredClaims.length})</TabsTrigger>
-            <TabsTrigger value="sales">Sales ({filteredSales.length})</TabsTrigger>
-            <TabsTrigger value="dealers">Dealers ({filteredDealers.length})</TabsTrigger>
-          </TabsList>
+        </CardContent>
+      </Card>
 
-          <TabsContent value="skus" className="mt-6">
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>SKU ID</TableHead>
-                    <TableHead>Product Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Warehouse</TableHead>
-                    <TableHead>Zone</TableHead>
-                    <TableHead>Stock</TableHead>
-                    <TableHead>Price</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredSKUs.slice(0, 50).map((sku) => (
-                    <TableRow key={sku.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium">{sku.id}</TableCell>
-                      <TableCell>{sku.name}</TableCell>
-                      <TableCell>{sku.category}</TableCell>
-                      <TableCell>{sku.warehouse}</TableCell>
-                      <TableCell>{sku.zone}</TableCell>
-                      <TableCell>
-                        <span className={sku.stock < 50 ? 'text-red-600 font-semibold' : ''}>
-                          {sku.stock}
-                        </span>
-                      </TableCell>
-                      <TableCell>₹{sku.price.toLocaleString()}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </TabsContent>
+      {/* Data Tables */}
+      <Tabs defaultValue="skus" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="skus" className="flex items-center space-x-2">
+            <Package className="w-4 h-4" />
+            <span>SKUs ({filteredSKUs.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="claims" className="flex items-center space-x-2">
+            <FileText className="w-4 h-4" />
+            <span>Claims ({filteredClaims.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="sales" className="flex items-center space-x-2">
+            <TrendingUp className="w-4 h-4" />
+            <span>Sales ({filteredSales.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="dealers" className="flex items-center space-x-2">
+            <Users className="w-4 h-4" />
+            <span>Dealers ({filteredDealers.length})</span>
+          </TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="claims" className="mt-6">
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Claim ID</TableHead>
-                    <TableHead>Dealer</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead>Resolved</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredClaims.slice(0, 50).map((claim) => (
-                    <TableRow key={claim.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium">{claim.id}</TableCell>
-                      <TableCell>{claim.dealerName}</TableCell>
-                      <TableCell>₹{claim.amount.toLocaleString()}</TableCell>
-                      <TableCell>{getStatusBadge(claim.status)}</TableCell>
-                      <TableCell>{claim.type}</TableCell>
-                      <TableCell>{claim.submittedDate}</TableCell>
-                      <TableCell>{claim.resolvedDate || '-'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </TabsContent>
+        {/* SKUs Table */}
+        <TabsContent value="skus">
+          <Card>
+            <CardHeader>
+              <CardTitle>SKU Inventory</CardTitle>
+              <CardDescription>Product inventory across all warehouses</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b text-left">
+                      <th className="pb-2">SKU ID</th>
+                      <th className="pb-2">Product Name</th>
+                      <th className="pb-2">Category</th>
+                      <th className="pb-2">Warehouse</th>
+                      <th className="pb-2">Stock</th>
+                      <th className="pb-2">Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredSKUs.slice(0, 50).map((sku) => (
+                      <tr key={sku.id} className="border-b">
+                        <td className="py-2 font-mono text-sm">{sku.id}</td>
+                        <td className="py-2">{sku.name}</td>
+                        <td className="py-2">
+                          <Badge variant="outline">{sku.category}</Badge>
+                        </td>
+                        <td className="py-2">{sku.warehouse}</td>
+                        <td className="py-2">
+                          <span className={sku.stock < 50 ? 'text-red-600 font-semibold' : ''}>
+                            {sku.stock}
+                          </span>
+                        </td>
+                        <td className="py-2">₹{sku.price.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-          <TabsContent value="sales" className="mt-6">
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Sale ID</TableHead>
-                    <TableHead>Dealer</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Region</TableHead>
-                    <TableHead>Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredSales.slice(0, 50).map((sale) => (
-                    <TableRow key={sale.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium">{sale.id}</TableCell>
-                      <TableCell>{sale.dealerName}</TableCell>
-                      <TableCell>{sale.skuName}</TableCell>
-                      <TableCell>{sale.quantity}</TableCell>
-                      <TableCell>₹{sale.amount.toLocaleString()}</TableCell>
-                      <TableCell>{sale.region}</TableCell>
-                      <TableCell>{sale.date}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </TabsContent>
+        {/* Claims Table */}
+        <TabsContent value="claims">
+          <Card>
+            <CardHeader>
+              <CardTitle>Claims Management</CardTitle>
+              <CardDescription>All dealer claims and their current status</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b text-left">
+                      <th className="pb-2">Claim ID</th>
+                      <th className="pb-2">Dealer</th>
+                      <th className="pb-2">Type</th>
+                      <th className="pb-2">Amount</th>
+                      <th className="pb-2">Status</th>
+                      <th className="pb-2">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredClaims.slice(0, 50).map((claim) => (
+                      <tr key={claim.id} className="border-b">
+                        <td className="py-2 font-mono text-sm">{claim.id}</td>
+                        <td className="py-2">{claim.dealerName}</td>
+                        <td className="py-2">{claim.type}</td>
+                        <td className="py-2">₹{claim.amount.toLocaleString()}</td>
+                        <td className="py-2">{getStatusBadge(claim.status)}</td>
+                        <td className="py-2">{claim.submittedDate}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-          <TabsContent value="dealers" className="mt-6">
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Dealer ID</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>City</TableHead>
-                    <TableHead>Region</TableHead>
-                    <TableHead>Zone</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDealers.slice(0, 50).map((dealer) => (
-                    <TableRow key={dealer.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium">{dealer.id}</TableCell>
-                      <TableCell>{dealer.name}</TableCell>
-                      <TableCell>{dealer.city}</TableCell>
-                      <TableCell>{dealer.region}</TableCell>
-                      <TableCell>{dealer.zone}</TableCell>
-                      <TableCell>{dealer.contact}</TableCell>
-                      <TableCell>{getStatusBadge(dealer.status)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+        {/* Sales Table */}
+        <TabsContent value="sales">
+          <Card>
+            <CardHeader>
+              <CardTitle>Sales Transactions</CardTitle>
+              <CardDescription>All sales transactions across dealers</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b text-left">
+                      <th className="pb-2">Sale ID</th>
+                      <th className="pb-2">Dealer</th>
+                      <th className="pb-2">Product</th>
+                      <th className="pb-2">Quantity</th>
+                      <th className="pb-2">Amount</th>
+                      <th className="pb-2">Region</th>
+                      <th className="pb-2">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredSales.slice(0, 50).map((sale) => (
+                      <tr key={sale.id} className="border-b">
+                        <td className="py-2 font-mono text-sm">{sale.id}</td>
+                        <td className="py-2">{sale.dealerName}</td>
+                        <td className="py-2">{sale.skuName}</td>
+                        <td className="py-2">{sale.quantity}</td>
+                        <td className="py-2">₹{sale.amount.toLocaleString()}</td>
+                        <td className="py-2">{sale.region}</td>
+                        <td className="py-2">{sale.date}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Dealers Table */}
+        <TabsContent value="dealers">
+          <Card>
+            <CardHeader>
+              <CardTitle>Dealer Directory</CardTitle>
+              <CardDescription>All registered dealers and their information</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b text-left">
+                      <th className="pb-2">Dealer ID</th>
+                      <th className="pb-2">Name</th>
+                      <th className="pb-2">Region</th>
+                      <th className="pb-2">Zone</th>
+                      <th className="pb-2">City</th>
+                      <th className="pb-2">Contact</th>
+                      <th className="pb-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDealers.map((dealer) => (
+                      <tr key={dealer.id} className="border-b">
+                        <td className="py-2 font-mono text-sm">{dealer.id}</td>
+                        <td className="py-2">{dealer.name}</td>
+                        <td className="py-2">{dealer.region}</td>
+                        <td className="py-2">{dealer.zone}</td>
+                        <td className="py-2">{dealer.city}</td>
+                        <td className="py-2">{dealer.contact}</td>
+                        <td className="py-2">{getStatusBadge(dealer.status)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 

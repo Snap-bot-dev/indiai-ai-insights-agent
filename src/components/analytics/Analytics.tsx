@@ -1,7 +1,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useData } from '../../contexts/DataContext';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { TrendingUp, DollarSign, Package, Users } from 'lucide-react';
 
 interface AnalyticsProps {
   userRole?: string;
@@ -10,97 +11,140 @@ interface AnalyticsProps {
 const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
   const { skus, claims, sales, dealers } = useData();
 
-  // Process data for charts
-  const getSalesDataByMonth = () => {
-    const salesByMonth = sales.reduce((acc, sale) => {
-      const month = new Date(sale.date).toLocaleDateString('en-US', { month: 'short' });
-      acc[month] = (acc[month] || 0) + sale.amount;
-      return acc;
-    }, {} as Record<string, number>);
+  // Generate analytics data
+  const salesByMonth = sales.reduce((acc, sale) => {
+    const month = new Date(sale.date).toLocaleString('default', { month: 'short', year: '2-digit' });
+    acc[month] = (acc[month] || 0) + sale.amount;
+    return acc;
+  }, {} as Record<string, number>);
 
-    return Object.entries(salesByMonth).map(([month, amount]) => ({
-      month,
-      amount: amount / 1000000 // Convert to millions
-    }));
-  };
+  const monthlyData = Object.entries(salesByMonth).map(([month, amount]) => ({
+    month,
+    amount: amount / 1000000 // Convert to millions
+  }));
 
-  const getClaimsDataByStatus = () => {
-    const claimsByStatus = claims.reduce((acc, claim) => {
-      acc[claim.status] = (acc[claim.status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+  const regionSales = sales.reduce((acc, sale) => {
+    acc[sale.region] = (acc[sale.region] || 0) + sale.amount;
+    return acc;
+  }, {} as Record<string, number>);
 
-    const colors = { Pending: '#f59e0b', Approved: '#10b981', Rejected: '#ef4444' };
-    
-    return Object.entries(claimsByStatus).map(([status, count]) => ({
-      name: status,
-      value: count,
-      color: colors[status as keyof typeof colors]
-    }));
-  };
+  const regionData = Object.entries(regionSales).map(([region, amount]) => ({
+    region,
+    amount: amount / 1000000
+  }));
 
-  const getTopSellingProducts = () => {
-    const productSales = sales.reduce((acc, sale) => {
-      acc[sale.skuName] = (acc[sale.skuName] || 0) + sale.quantity;
-      return acc;
-    }, {} as Record<string, number>);
+  const claimsByStatus = claims.reduce((acc, claim) => {
+    acc[claim.status] = (acc[claim.status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
-    return Object.entries(productSales)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 10)
-      .map(([product, quantity]) => ({ product, quantity }));
-  };
+  const claimsData = Object.entries(claimsByStatus).map(([status, count]) => ({
+    status,
+    count
+  }));
 
-  const getRegionalSales = () => {
-    const regionSales = sales.reduce((acc, sale) => {
-      acc[sale.region] = (acc[sale.region] || 0) + sale.amount;
-      return acc;
-    }, {} as Record<string, number>);
+  const stockLevels = skus.map(sku => ({
+    name: sku.name.substring(0, 10) + '...',
+    stock: sku.stock,
+    category: sku.category
+  })).slice(0, 10);
 
-    return Object.entries(regionSales).map(([region, amount]) => ({
-      region,
-      amount: amount / 1000000 // Convert to millions
-    }));
-  };
-
-  const salesData = getSalesDataByMonth();
-  const claimsData = getClaimsDataByStatus();
-  const topProducts = getTopSellingProducts();
-  const regionalData = getRegionalSales();
+  const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00'];
 
   return (
     <div className="space-y-6">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">₹{(sales.reduce((sum, sale) => sum + sale.amount, 0) / 10000000).toFixed(1)}Cr</div>
+            <p className="text-xs text-muted-foreground">+12.5% from last month</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active SKUs</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{skus.filter(sku => sku.stock > 0).length}</div>
+            <p className="text-xs text-muted-foreground">Out of {skus.length} total</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Claims</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{claims.filter(c => c.status === 'Pending').length}</div>
+            <p className="text-xs text-muted-foreground">-8% from last week</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Dealers</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{dealers.filter(d => d.status === 'Active').length}</div>
+            <p className="text-xs text-muted-foreground">95% active rate</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sales by Month */}
-        <Card className="animate-fade-in">
+        {/* Monthly Sales Trend */}
+        <Card>
           <CardHeader>
-            <CardTitle>Sales Trend</CardTitle>
-            <CardDescription>Monthly revenue in millions (₹)</CardDescription>
+            <CardTitle>Monthly Sales Trend</CardTitle>
+            <CardDescription>Revenue over the past 12 months (in ₹Cr)</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={salesData}>
+              <LineChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip formatter={(value) => [`₹${value}M`, 'Revenue']} />
-                <Line 
-                  type="monotone" 
-                  dataKey="amount" 
-                  stroke="#3b82f6" 
-                  strokeWidth={3}
-                  dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                />
+                <Tooltip formatter={(value) => [`₹${value}Cr`, 'Revenue']} />
+                <Line type="monotone" dataKey="amount" stroke="#8884d8" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Claims by Status */}
-        <Card className="animate-fade-in">
+        {/* Regional Sales */}
+        <Card>
           <CardHeader>
-            <CardTitle>Claims Distribution</CardTitle>
-            <CardDescription>Claims breakdown by status</CardDescription>
+            <CardTitle>Sales by Region</CardTitle>
+            <CardDescription>Revenue distribution across regions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={regionData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="region" />
+                <YAxis />
+                <Tooltip formatter={(value) => [`₹${value}Cr`, 'Revenue']} />
+                <Bar dataKey="amount" fill="#82ca9d" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Claims Status */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Claims Status Distribution</CardTitle>
+            <CardDescription>Current status of all claims</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -110,13 +154,13 @@ const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ status, percent }) => `${status} ${(percent * 100).toFixed(0)}%`}
                   outerRadius={80}
                   fill="#8884d8"
-                  dataKey="value"
+                  dataKey="count"
                 >
                   {claimsData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -125,78 +169,22 @@ const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
           </CardContent>
         </Card>
 
-        {/* Top Selling Products */}
-        <Card className="animate-fade-in">
+        {/* Stock Levels */}
+        <Card>
           <CardHeader>
-            <CardTitle>Top Selling Products</CardTitle>
-            <CardDescription>Best performing SKUs by quantity</CardDescription>
+            <CardTitle>Stock Levels</CardTitle>
+            <CardDescription>Current inventory levels for top products</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={topProducts} layout="horizontal">
+              <BarChart data={stockLevels} layout="horizontal">
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
-                <YAxis dataKey="product" type="category" width={80} />
+                <YAxis dataKey="name" type="category" width={100} />
                 <Tooltip />
-                <Bar dataKey="quantity" fill="#10b981" />
+                <Bar dataKey="stock" fill="#ffc658" />
               </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Regional Sales */}
-        <Card className="animate-fade-in">
-          <CardHeader>
-            <CardTitle>Regional Performance</CardTitle>
-            <CardDescription>Sales by region in millions (₹)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={regionalData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="region" />
-                <YAxis />
-                <Tooltip formatter={(value) => [`₹${value}M`, 'Revenue']} />
-                <Bar dataKey="amount" fill="#8b5cf6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 animate-scale-in">
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-blue-700">{skus.length}</div>
-            <div className="text-sm text-blue-600">Total SKUs</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200 animate-scale-in">
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-green-700">
-              ₹{(sales.reduce((sum, sale) => sum + sale.amount, 0) / 1000000).toFixed(1)}M
-            </div>
-            <div className="text-sm text-green-600">Total Revenue</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200 animate-scale-in">
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-orange-700">
-              {claims.filter(c => c.status === 'Pending').length}
-            </div>
-            <div className="text-sm text-orange-600">Pending Claims</div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200 animate-scale-in">
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-purple-700">
-              {dealers.filter(d => d.status === 'Active').length}
-            </div>
-            <div className="text-sm text-purple-600">Active Dealers</div>
           </CardContent>
         </Card>
       </div>
