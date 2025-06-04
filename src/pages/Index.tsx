@@ -1,13 +1,33 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import { useState, useEffect } from 'react';
+import { AuthProvider } from '../contexts/AuthContext';
+import { DataProvider } from '../contexts/DataContext';
+import LoginScreen from '../components/auth/LoginScreen';
+import Dashboard from '../components/dashboard/Dashboard';
+import { Toaster } from '@/components/ui/toaster';
 
 const Index = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <AuthProvider>
+      <DataProvider>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+          {!isAuthenticated ? (
+            <LoginScreen 
+              onLogin={(role) => {
+                setIsAuthenticated(true);
+                setUserRole(role);
+              }} 
+            />
+          ) : (
+            <Dashboard userRole={userRole} />
+          )}
+          <Toaster />
+        </div>
+      </DataProvider>
+    </AuthProvider>
   );
 };
 
