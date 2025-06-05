@@ -1,275 +1,223 @@
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useRef, useEffect } from 'react';
+import { Send, MessageSquare, Settings, Key } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { useData } from '../../contexts/DataContext';
-import { aiService } from '../../services/aiService';
-import { Send, Bot, User, Lightbulb, Key } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { aiService } from '@/services/aiService';
+import { useToast } from '@/hooks/use-toast';
 
 interface Message {
   id: string;
   content: string;
-  sender: 'user' | 'bot';
+  sender: 'user' | 'ai';
   timestamp: Date;
 }
 
 interface ChatInterfaceProps {
-  userRole?: string;
+  userRole: string | null;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ userRole = 'dealer' }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ userRole }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: `Hello! I'm your AI assistant here to help you with SKU availability, claims status, and sales data. I'm connected to your live database and can provide real-time insights. What would you like to know today?`,
-      sender: 'bot',
+      content: `Hello! 👋 I'm your AI business assistant. I can help you with:
+
+📦 **Product & Inventory**: Check SKU availability, stock levels, and product information
+📋 **Claims Management**: Review warranty claims, returns, and their status  
+📊 **Sales Analytics**: Analyze sales performance, revenue trends, and dealer insights
+🔍 **Smart Search**: Find specific data across your business operations
+
+What would you like to explore today?`,
+      sender: 'ai',
       timestamp: new Date()
     }
   ]);
-  const [inputMessage, setInputMessage] = useState('');
+  const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const { isLoading: dataLoading, error: dataError } = useData();
+  const [apiKey, setApiKey] = useState(aiService.getApiKey() || '');
+  const [showApiDialog, setShowApiDialog] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
-  const suggestedQueries = [
-    "Show me low stock products",
-    "What are my pending claims?",
-    "Display this month's sales performance",
-    "Which products are popular in Chennai?",
-    "Show warranty claims from last week"
-  ];
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
-    // Check if API key exists
-    const existingKey = aiService.getApiKey();
-    if (!existingKey) {
-      setShowApiKeyInput(true);
-    }
-  }, []);
+    scrollToBottom();
+  }, [messages]);
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
-    
+  const handleSend = async () => {
+    if (!inputValue.trim() || isLoading) return;
+
     const userMessage: Message = {
       id: Date.now().toString(),
-      content: inputMessage,
+      content: inputValue.trim(),
       sender: 'user',
       timestamp: new Date()
     };
-    
+
     setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
+    setInputValue('');
     setIsLoading(true);
-    
+
     try {
-      // Use the AI service to process the query
-      const response = await aiService.processQuery(inputMessage, userRole);
+      const response = await aiService.processQuery(inputValue.trim(), userRole || 'dealer');
       
-      const botResponse: Message = {
+      const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: response,
-        sender: 'bot',
+        sender: 'ai',
         timestamp: new Date()
       };
-      
-      setMessages(prev => [...prev, botResponse]);
+
+      setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
-      const errorResponse: Message = {
+      console.error('Error sending message:', error);
+      const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "I apologize, but I encountered an issue processing your request. Please try again or contact support if the problem persists.",
-        sender: 'bot',
+        content: "I apologize, but I'm having trouble processing your request right now. Please try again in a moment! 😊",
+        sender: 'ai',
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, errorResponse]);
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleApiKeySubmit = () => {
-    if (apiKeyInput.trim()) {
-      aiService.setApiKey(apiKeyInput.trim());
-      setShowApiKeyInput(false);
-      setApiKeyInput('');
-      
-      // Add a confirmation message
-      const confirmationMessage: Message = {
-        id: Date.now().toString(),
-        content: "Great! I've saved your OpenAI API key. I can now provide more intelligent and context-aware responses. Feel free to ask me anything about your business data!",
-        sender: 'bot',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, confirmationMessage]);
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
   };
 
-  const handleSuggestedQuery = (query: string) => {
-    setInputMessage(query);
+  const handleApiKeySave = () => {
+    if (apiKey.trim()) {
+      aiService.setApiKey(apiKey.trim());
+      setShowApiDialog(false);
+      toast({
+        title: "API Key Saved! 🎉",
+        description: "OpenAI integration is now active for enhanced responses.",
+      });
+    }
   };
 
-  if (dataLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your data...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (dataError) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">Error loading data: {dataError}</p>
-          <Button onClick={() => window.location.reload()}>Retry</Button>
-        </div>
-      </div>
-    );
-  }
+  const formatMessage = (content: string) => {
+    // Convert markdown-style formatting to HTML
+    return content
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .split('\n')
+      .map((line, index) => (
+        <div key={index} dangerouslySetInnerHTML={{ __html: line }} />
+      ));
+  };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-      {/* Chat Interface */}
-      <div className="lg:col-span-3">
-        <Card className="h-[600px] flex flex-col">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Bot className="w-5 h-5 text-blue-600" />
-              <span>AI Assistant</span>
-              <Badge variant="secondary">{userRole}</Badge>
-              {aiService.getApiKey() && (
-                <Badge variant="outline" className="text-green-600">
-                  <Key className="w-3 h-3 mr-1" />
-                  Enhanced AI
-                </Badge>
-              )}
-            </CardTitle>
-            <CardDescription>
-              Ask me about your business data using natural language. I'm connected to your live database!
-            </CardDescription>
-          </CardHeader>
-          
-          <CardContent className="flex-1 flex flex-col">
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto space-y-4 mb-4 p-4 bg-gray-50 rounded-lg">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[80%] p-3 rounded-lg ${
-                      message.sender === 'user'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white text-gray-900 border shadow-sm'
-                    }`}
-                  >
-                    <div className="flex items-start space-x-2">
-                      {message.sender === 'bot' && <Bot className="w-4 h-4 mt-1 text-blue-600" />}
-                      {message.sender === 'user' && <User className="w-4 h-4 mt-1" />}
-                      <div className="whitespace-pre-line">{message.content}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-white border p-3 rounded-lg shadow-sm">
-                    <div className="flex items-center space-x-2">
-                      <Bot className="w-4 h-4 text-blue-600" />
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                      </div>
-                      <span className="text-sm text-gray-500">Analyzing your data...</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* Input */}
-            <div className="flex space-x-2">
-              <Input
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Ask about products, claims, sales, or anything else..."
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                disabled={isLoading}
-              />
-              <Button onClick={handleSendMessage} disabled={isLoading || !inputMessage.trim()}>
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      {/* Sidebar */}
-      <div className="space-y-4">
-        {/* Suggested Queries */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Lightbulb className="w-5 h-5 text-yellow-600" />
-              <span>Try asking...</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {suggestedQueries.map((query, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                size="sm"
-                className="w-full text-left justify-start h-auto p-3 hover:bg-blue-50"
-                onClick={() => handleSuggestedQuery(query)}
-              >
-                {query}
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
-        
-        {/* API Key Configuration */}
-        {showApiKeyInput && (
-          <Card className="border-orange-200 bg-orange-50">
-            <CardHeader>
-              <CardTitle className="text-sm flex items-center space-x-2">
-                <Key className="w-4 h-4" />
-                <span>Enhance AI Responses</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Input
-                type="password"
-                placeholder="Enter OpenAI API Key"
-                value={apiKeyInput}
-                onChange={(e) => setApiKeyInput(e.target.value)}
-                className="text-xs"
-              />
-              <div className="flex space-x-2">
-                <Button size="sm" onClick={handleApiKeySubmit} className="flex-1">
-                  Save
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowApiKeyInput(false)}>
-                  Skip
-                </Button>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="w-5 h-5 text-blue-600" />
+          <CardTitle>AI Business Assistant</CardTitle>
+        </div>
+        <Dialog open={showApiDialog} onOpenChange={setShowApiDialog}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Key className="w-4 h-4" />
+              {aiService.getApiKey() ? 'Update' : 'Setup'} OpenAI
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>OpenAI API Configuration</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="apiKey">OpenAI API Key</Label>
+                <Input
+                  id="apiKey"
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="sk-..."
+                  className="mt-1"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Add your OpenAI API key for enhanced natural language processing and better responses.
+                </p>
               </div>
-              <p className="text-xs text-gray-600">
-                Optional: Add your OpenAI API key for more intelligent, context-aware responses.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </div>
+              <Button onClick={handleApiKeySave} className="w-full">
+                Save API Key
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </CardHeader>
+      
+      <CardContent className="flex-1 flex flex-col p-4 space-y-4 overflow-hidden">
+        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                  message.sender === 'user'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-900'
+                }`}
+              >
+                <div className="whitespace-pre-wrap">
+                  {formatMessage(message.content)}
+                </div>
+                <div className={`text-xs mt-1 ${
+                  message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
+                }`}>
+                  {message.timestamp.toLocaleTimeString()}
+                </div>
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-gray-100 rounded-lg px-4 py-2">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+        
+        <div className="flex space-x-2">
+          <Input
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Ask me about SKUs, claims, sales, or anything else..."
+            disabled={isLoading}
+            className="flex-1"
+          />
+          <Button 
+            onClick={handleSend} 
+            disabled={isLoading || !inputValue.trim()}
+            size="icon"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

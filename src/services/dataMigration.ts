@@ -77,96 +77,123 @@ export const migrateDataToSupabase = async () => {
     console.log('Starting data migration...');
     
     // Check if data already exists
-    const { data: existingDealers } = await supabase.from('dealers').select('id').limit(1);
+    const { data: existingDealers, error: checkError } = await supabase.from('dealers' as any).select('id').limit(1);
+    
+    if (checkError) {
+      console.log('Tables may not exist yet or migration needed. Error:', checkError.message);
+    }
+    
     if (existingDealers && existingDealers.length > 0) {
       console.log('Data already exists, skipping migration');
       return { success: true, message: 'Data already migrated' };
     }
 
+    console.log('Generating mock data...');
     // Generate mock data
     const dealers = generateDealers();
     const skus = generateSKUs();
     const claims = generateClaims(dealers);
     const sales = generateSales(dealers, skus);
 
+    console.log('Inserting dealers...');
     // Insert dealers
-    const { error: dealersError } = await supabase.from('dealers').insert(dealers);
-    if (dealersError) throw dealersError;
+    const { error: dealersError } = await supabase.from('dealers' as any).insert(dealers);
+    if (dealersError) {
+      console.error('Dealers insert error:', dealersError);
+      throw dealersError;
+    }
     console.log('Dealers inserted successfully');
 
+    console.log('Inserting SKUs...');
     // Insert SKUs
-    const { error: skusError } = await supabase.from('skus').insert(skus);
-    if (skusError) throw skusError;
+    const { error: skusError } = await supabase.from('skus' as any).insert(skus);
+    if (skusError) {
+      console.error('SKUs insert error:', skusError);
+      throw skusError;
+    }
     console.log('SKUs inserted successfully');
 
+    console.log('Inserting claims...');
     // Insert claims
-    const { error: claimsError } = await supabase.from('claims').insert(claims);
-    if (claimsError) throw claimsError;
+    const { error: claimsError } = await supabase.from('claims' as any).insert(claims);
+    if (claimsError) {
+      console.error('Claims insert error:', claimsError);
+      throw claimsError;
+    }
     console.log('Claims inserted successfully');
 
+    console.log('Inserting sales...');
     // Insert sales
-    const { error: salesError } = await supabase.from('sales').insert(sales);
-    if (salesError) throw salesError;
+    const { error: salesError } = await supabase.from('sales' as any).insert(sales);
+    if (salesError) {
+      console.error('Sales insert error:', salesError);
+      throw salesError;
+    }
     console.log('Sales inserted successfully');
 
     // Generate embeddings for SKUs, claims, and sales data
+    console.log('Generating embeddings...');
     await generateEmbeddings(skus, claims, sales);
 
     console.log('Data migration completed successfully');
     return { success: true, message: 'Data migrated successfully' };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Migration failed:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error.message || 'Migration failed' };
   }
 };
 
 const generateEmbeddings = async (skus: any[], claims: any[], sales: any[]) => {
-  const documents = [];
-  
-  // Create documents from SKUs
-  skus.forEach(sku => {
-    documents.push({
-      content: `SKU ${sku.id}: ${sku.name} in ${sku.category} category. Available in ${sku.warehouse} warehouse, ${sku.zone} zone. Stock: ${sku.stock} units. Price: ₹${sku.price}. ${sku.description}`,
-      metadata: { type: 'sku', id: sku.id, category: sku.category, zone: sku.zone },
-      document_type: 'sku'
+  try {
+    const documents = [];
+    
+    // Create documents from SKUs
+    skus.forEach(sku => {
+      documents.push({
+        content: `SKU ${sku.id}: ${sku.name} in ${sku.category} category. Available in ${sku.warehouse} warehouse, ${sku.zone} zone. Stock: ${sku.stock} units. Price: ₹${sku.price}. ${sku.description}`,
+        metadata: { type: 'sku', id: sku.id, category: sku.category, zone: sku.zone },
+        document_type: 'sku'
+      });
     });
-  });
 
-  // Create documents from claims
-  claims.forEach(claim => {
-    documents.push({
-      content: `Claim ${claim.id} by ${claim.dealer_name}. Type: ${claim.type}. Status: ${claim.status}. Amount: ₹${claim.amount}. Submitted: ${claim.submitted_date}`,
-      metadata: { type: 'claim', id: claim.id, dealer_id: claim.dealer_id, status: claim.status },
-      document_type: 'claim'
+    // Create documents from claims
+    claims.forEach(claim => {
+      documents.push({
+        content: `Claim ${claim.id} by ${claim.dealer_name}. Type: ${claim.type}. Status: ${claim.status}. Amount: ₹${claim.amount}. Submitted: ${claim.submitted_date}`,
+        metadata: { type: 'claim', id: claim.id, dealer_id: claim.dealer_id, status: claim.status },
+        document_type: 'claim'
+      });
     });
-  });
 
-  // Create documents from sales
-  sales.slice(0, 100).forEach(sale => { // Limit to first 100 for performance
-    documents.push({
-      content: `Sale ${sale.id}: ${sale.sku_name} sold by ${sale.dealer_name}. Quantity: ${sale.quantity}. Amount: ₹${sale.amount}. Region: ${sale.region}, Zone: ${sale.zone}. Date: ${sale.date}`,
-      metadata: { type: 'sale', id: sale.id, dealer_id: sale.dealer_id, sku_id: sale.sku_id },
-      document_type: 'sale'
+    // Create documents from sales
+    sales.slice(0, 100).forEach(sale => { // Limit to first 100 for performance
+      documents.push({
+        content: `Sale ${sale.id}: ${sale.sku_name} sold by ${sale.dealer_name}. Quantity: ${sale.quantity}. Amount: ₹${sale.amount}. Region: ${sale.region}, Zone: ${sale.zone}. Date: ${sale.date}`,
+        metadata: { type: 'sale', id: sale.id, dealer_id: sale.dealer_id, sku_id: sale.sku_id },
+        document_type: 'sale'
+      });
     });
-  });
 
-  // Generate simple embeddings (in production, use OpenAI embeddings)
-  const documentsWithEmbeddings = documents.map(doc => ({
-    ...doc,
-    embedding: generateSimpleEmbedding(doc.content)
-  }));
+    // Generate simple embeddings (in production, use OpenAI embeddings)
+    const documentsWithEmbeddings = documents.map(doc => ({
+      ...doc,
+      embedding: generateSimpleEmbedding(doc.content)
+    }));
 
-  // Insert embeddings in batches
-  const batchSize = 50;
-  for (let i = 0; i < documentsWithEmbeddings.length; i += batchSize) {
-    const batch = documentsWithEmbeddings.slice(i, i + batchSize);
-    const { error } = await supabase.from('document_embeddings').insert(batch);
-    if (error) {
-      console.error('Error inserting embeddings batch:', error);
+    // Insert embeddings in batches
+    const batchSize = 50;
+    for (let i = 0; i < documentsWithEmbeddings.length; i += batchSize) {
+      const batch = documentsWithEmbeddings.slice(i, i + batchSize);
+      const { error } = await supabase.from('document_embeddings' as any).insert(batch);
+      if (error) {
+        console.error('Error inserting embeddings batch:', error);
+      }
     }
+    
+    console.log('Embeddings generated and stored');
+  } catch (error) {
+    console.error('Error generating embeddings:', error);
   }
-  
-  console.log('Embeddings generated and stored');
 };
 
 // Simple embedding generation (replace with OpenAI in production)

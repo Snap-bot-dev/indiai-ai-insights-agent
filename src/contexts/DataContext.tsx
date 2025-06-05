@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { migrateDataToSupabase } from '../services/dataMigration';
@@ -15,21 +16,21 @@ interface SKU {
 
 interface Claim {
   id: string;
-  dealerId: string;
-  dealerName: string;
+  dealer_id: string;
+  dealer_name: string;
   amount: number;
   status: 'Pending' | 'Approved' | 'Rejected';
   type: string;
-  submittedDate: string;
-  resolvedDate?: string;
+  submitted_date: string;
+  resolved_date?: string;
 }
 
 interface Sale {
   id: string;
-  dealerId: string;
-  dealerName: string;
-  skuId: string;
-  skuName: string;
+  dealer_id: string;
+  dealer_name: string;
+  sku_id: string;
+  sku_name: string;
   quantity: number;
   amount: number;
   date: string;
@@ -62,75 +63,6 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-// Mock data generators
-const generateSKUs = (): SKU[] => {
-  const categories = ['Electronics', 'Appliances', 'Tools', 'Components', 'Accessories'];
-  const zones = ['North', 'South', 'East', 'West', 'Central'];
-  const warehouses = ['Chennai', 'Mumbai', 'Delhi', 'Bangalore', 'Kolkata', 'Pune', 'Hyderabad'];
-  
-  return Array.from({ length: 300 }, (_, i) => ({
-    id: `SKU${String(i + 1).padStart(5, '0')}`,
-    name: `Product ${i + 1}`,
-    category: categories[Math.floor(Math.random() * categories.length)],
-    zone: zones[Math.floor(Math.random() * zones.length)],
-    warehouse: warehouses[Math.floor(Math.random() * warehouses.length)],
-    stock: Math.floor(Math.random() * 1000),
-    price: Math.floor(Math.random() * 50000) + 1000,
-    description: `High-quality ${categories[Math.floor(Math.random() * categories.length)].toLowerCase()} product`
-  }));
-};
-
-const generateClaims = (): Claim[] => {
-  const statuses: ('Pending' | 'Approved' | 'Rejected')[] = ['Pending', 'Approved', 'Rejected'];
-  const types = ['Warranty', 'Return', 'Damage', 'Quality Issue'];
-  const dealers = ['Raj Electronics', 'Kumar Traders', 'Sharma Industries', 'Patel Corp'];
-  
-  return Array.from({ length: 100 }, (_, i) => ({
-    id: `CLM${String(i + 1).padStart(5, '0')}`,
-    dealerId: `D${String(Math.floor(i / 4) + 1).padStart(3, '0')}`,
-    dealerName: dealers[i % dealers.length],
-    amount: Math.floor(Math.random() * 100000) + 5000,
-    status: statuses[Math.floor(Math.random() * statuses.length)],
-    type: types[Math.floor(Math.random() * types.length)],
-    submittedDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    resolvedDate: Math.random() > 0.3 ? new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : undefined
-  }));
-};
-
-const generateSales = (): Sale[] => {
-  const dealers = ['Raj Electronics', 'Kumar Traders', 'Sharma Industries', 'Patel Corp'];
-  const regions = ['Chennai', 'Mumbai', 'Delhi', 'Bangalore', 'Kolkata'];
-  const zones = ['North', 'South', 'East', 'West', 'Central'];
-  
-  return Array.from({ length: 1000 }, (_, i) => ({
-    id: `SAL${String(i + 1).padStart(5, '0')}`,
-    dealerId: `D${String(Math.floor(i / 40) + 1).padStart(3, '0')}`,
-    dealerName: dealers[i % dealers.length],
-    skuId: `SKU${String(Math.floor(Math.random() * 300) + 1).padStart(5, '0')}`,
-    skuName: `Product ${Math.floor(Math.random() * 300) + 1}`,
-    quantity: Math.floor(Math.random() * 20) + 1,
-    amount: Math.floor(Math.random() * 200000) + 10000,
-    date: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    region: regions[Math.floor(Math.random() * regions.length)],
-    zone: zones[Math.floor(Math.random() * zones.length)]
-  }));
-};
-
-const generateDealers = (): Dealer[] => {
-  const cities = ['Chennai', 'Mumbai', 'Delhi', 'Bangalore', 'Kolkata', 'Pune', 'Hyderabad'];
-  const zones = ['North', 'South', 'East', 'West', 'Central'];
-  
-  return Array.from({ length: 50 }, (_, i) => ({
-    id: `D${String(i + 1).padStart(3, '0')}`,
-    name: `Dealer ${i + 1}`,
-    region: cities[Math.floor(Math.random() * cities.length)],
-    zone: zones[Math.floor(Math.random() * zones.length)],
-    city: cities[Math.floor(Math.random() * cities.length)],
-    contact: `+91-${Math.floor(Math.random() * 9000000000) + 1000000000}`,
-    status: Math.random() > 0.1 ? 'Active' : 'Inactive'
-  }));
-};
-
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [skus, setSKUs] = useState<SKU[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -144,21 +76,36 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsLoading(true);
       setError(null);
 
-      // First, ensure data exists (migrate if needed)
-      await migrateDataToSupabase();
+      console.log('Starting data load...');
 
-      // Load all data from Supabase
+      // First, ensure data exists (migrate if needed)
+      const migrationResult = await migrateDataToSupabase();
+      console.log('Migration result:', migrationResult);
+
+      // Load all data from Supabase using proper typing
       const [skusResponse, claimsResponse, salesResponse, dealersResponse] = await Promise.all([
-        supabase.from('skus').select('*'),
-        supabase.from('claims').select('*'),
-        supabase.from('sales').select('*'),
-        supabase.from('dealers').select('*')
+        supabase.from('skus' as any).select('*'),
+        supabase.from('claims' as any).select('*'),
+        supabase.from('sales' as any).select('*'),
+        supabase.from('dealers' as any).select('*')
       ]);
 
-      if (skusResponse.error) throw skusResponse.error;
-      if (claimsResponse.error) throw claimsResponse.error;
-      if (salesResponse.error) throw salesResponse.error;
-      if (dealersResponse.error) throw dealersResponse.error;
+      if (skusResponse.error) {
+        console.error('SKUs error:', skusResponse.error);
+        throw skusResponse.error;
+      }
+      if (claimsResponse.error) {
+        console.error('Claims error:', claimsResponse.error);
+        throw claimsResponse.error;
+      }
+      if (salesResponse.error) {
+        console.error('Sales error:', salesResponse.error);
+        throw salesResponse.error;
+      }
+      if (dealersResponse.error) {
+        console.error('Dealers error:', dealersResponse.error);
+        throw dealersResponse.error;
+      }
 
       setSKUs(skusResponse.data || []);
       setClaims(claimsResponse.data || []);
@@ -166,9 +113,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setDealers(dealersResponse.data || []);
 
       console.log('Data loaded from Supabase successfully');
-    } catch (err) {
+      console.log('SKUs count:', skusResponse.data?.length);
+      console.log('Claims count:', claimsResponse.data?.length);
+      console.log('Sales count:', salesResponse.data?.length);
+      console.log('Dealers count:', dealersResponse.data?.length);
+    } catch (err: any) {
       console.error('Error loading data:', err);
-      setError(err.message);
+      setError(err.message || 'Failed to load data');
     } finally {
       setIsLoading(false);
     }
@@ -181,7 +132,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const searchSKU = async (query: string): Promise<SKU[]> => {
     try {
       const { data, error } = await supabase
-        .from('skus')
+        .from('skus' as any)
         .select('*')
         .or(`name.ilike.%${query}%,category.ilike.%${query}%,description.ilike.%${query}%`);
       
@@ -196,7 +147,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const searchClaims = async (query: string): Promise<Claim[]> => {
     try {
       const { data, error } = await supabase
-        .from('claims')
+        .from('claims' as any)
         .select('*')
         .or(`dealer_name.ilike.%${query}%,status.ilike.%${query}%,type.ilike.%${query}%`);
       
@@ -211,7 +162,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const searchSales = async (query: string): Promise<Sale[]> => {
     try {
       const { data, error } = await supabase
-        .from('sales')
+        .from('sales' as any)
         .select('*')
         .or(`dealer_name.ilike.%${query}%,sku_name.ilike.%${query}%,region.ilike.%${query}%,zone.ilike.%${query}%`);
       
