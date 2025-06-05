@@ -1,5 +1,6 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { migrateDataToSupabase } from '../services/dataMigration';
 
 interface SKU {
   id: string;
@@ -51,11 +52,12 @@ interface DataContextType {
   claims: Claim[];
   sales: Sale[];
   dealers: Dealer[];
-  searchSKU: (query: string) => SKU[];
-  searchClaims: (query: string) => Claim[];
-  searchSales: (query: string) => Sale[];
-  generateEmbedding: (text: string) => number[];
-  findSimilarQueries: (query: string) => string[];
+  searchSKU: (query: string) => Promise<SKU[]>;
+  searchClaims: (query: string) => Promise<Claim[]>;
+  searchSales: (query: string) => Promise<Sale[]>;
+  isLoading: boolean;
+  error: string | null;
+  refreshData: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -134,70 +136,91 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [claims, setClaims] = useState<Claim[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [dealers, setDealers] = useState<Dealer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // First, ensure data exists (migrate if needed)
+      await migrateDataToSupabase();
+
+      // Load all data from Supabase
+      const [skusResponse, claimsResponse, salesResponse, dealersResponse] = await Promise.all([
+        supabase.from('skus').select('*'),
+        supabase.from('claims').select('*'),
+        supabase.from('sales').select('*'),
+        supabase.from('dealers').select('*')
+      ]);
+
+      if (skusResponse.error) throw skusResponse.error;
+      if (claimsResponse.error) throw claimsResponse.error;
+      if (salesResponse.error) throw salesResponse.error;
+      if (dealersResponse.error) throw dealersResponse.error;
+
+      setSKUs(skusResponse.data || []);
+      setClaims(claimsResponse.data || []);
+      setSales(salesResponse.data || []);
+      setDealers(dealersResponse.data || []);
+
+      console.log('Data loaded from Supabase successfully');
+    } catch (err) {
+      console.error('Error loading data:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Initialize data
-    setSKUs(generateSKUs());
-    setClaims(generateClaims());
-    setSales(generateSales());
-    setDealers(generateDealers());
+    loadData();
   }, []);
 
-  // Simple text embedding simulation
-  const generateEmbedding = (text: string): number[] => {
-    const words = text.toLowerCase().split(' ');
-    const embedding = new Array(384).fill(0);
-    
-    words.forEach((word, i) => {
-      for (let j = 0; j < word.length && j < embedding.length; j++) {
-        embedding[j] += word.charCodeAt(j % word.length) * (i + 1);
-      }
-    });
-    
-    return embedding.map(val => val / 1000);
+  const searchSKU = async (query: string): Promise<SKU[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('skus')
+        .select('*')
+        .or(`name.ilike.%${query}%,category.ilike.%${query}%,description.ilike.%${query}%`);
+      
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.error('Error searching SKUs:', err);
+      return [];
+    }
   };
 
-  const findSimilarQueries = (query: string): string[] => {
-    const commonQueries = [
-      "Show me SKU availability in Chennai",
-      "What's the status of my recent claims?",
-      "Display sales data for this month",
-      "Which products are low in stock?",
-      "Show pending claims for approval"
-    ];
-    
-    return commonQueries.filter(q => 
-      q.toLowerCase().includes(query.toLowerCase()) || 
-      query.toLowerCase().includes(q.toLowerCase())
-    );
+  const searchClaims = async (query: string): Promise<Claim[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('claims')
+        .select('*')
+        .or(`dealer_name.ilike.%${query}%,status.ilike.%${query}%,type.ilike.%${query}%`);
+      
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.error('Error searching claims:', err);
+      return [];
+    }
   };
 
-  const searchSKU = (query: string): SKU[] => {
-    return skus.filter(sku => 
-      sku.id.toLowerCase().includes(query.toLowerCase()) ||
-      sku.name.toLowerCase().includes(query.toLowerCase()) ||
-      sku.category.toLowerCase().includes(query.toLowerCase()) ||
-      sku.zone.toLowerCase().includes(query.toLowerCase()) ||
-      sku.warehouse.toLowerCase().includes(query.toLowerCase())
-    );
-  };
-
-  const searchClaims = (query: string): Claim[] => {
-    return claims.filter(claim =>
-      claim.id.toLowerCase().includes(query.toLowerCase()) ||
-      claim.dealerName.toLowerCase().includes(query.toLowerCase()) ||
-      claim.status.toLowerCase().includes(query.toLowerCase()) ||
-      claim.type.toLowerCase().includes(query.toLowerCase())
-    );
-  };
-
-  const searchSales = (query: string): Sale[] => {
-    return sales.filter(sale =>
-      sale.dealerName.toLowerCase().includes(query.toLowerCase()) ||
-      sale.skuName.toLowerCase().includes(query.toLowerCase()) ||
-      sale.region.toLowerCase().includes(query.toLowerCase()) ||
-      sale.zone.toLowerCase().includes(query.toLowerCase())
-    );
+  const searchSales = async (query: string): Promise<Sale[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('sales')
+        .select('*')
+        .or(`dealer_name.ilike.%${query}%,sku_name.ilike.%${query}%,region.ilike.%${query}%,zone.ilike.%${query}%`);
+      
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.error('Error searching sales:', err);
+      return [];
+    }
   };
 
   return (
@@ -209,8 +232,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       searchSKU,
       searchClaims,
       searchSales,
-      generateEmbedding,
-      findSimilarQueries
+      isLoading,
+      error,
+      refreshData: loadData
     }}>
       {children}
     </DataContext.Provider>

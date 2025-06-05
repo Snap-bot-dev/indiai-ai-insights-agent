@@ -1,11 +1,12 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useData } from '../../contexts/DataContext';
-import { Send, Bot, User, Lightbulb } from 'lucide-react';
+import { aiService } from '../../services/aiService';
+import { Send, Bot, User, Lightbulb, Key } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -18,69 +19,36 @@ interface ChatInterfaceProps {
   userRole?: string;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ userRole }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ userRole = 'dealer' }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: 'Hello! I can help you with SKU availability, claims status, and sales data. What would you like to know?',
+      content: `Hello! I'm your AI assistant here to help you with SKU availability, claims status, and sales data. I'm connected to your live database and can provide real-time insights. What would you like to know today?`,
       sender: 'bot',
       timestamp: new Date()
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { searchSKU, searchClaims, searchSales, findSimilarQueries } = useData();
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const { isLoading: dataLoading, error: dataError } = useData();
 
   const suggestedQueries = [
-    "Show SKU availability in Chennai",
-    "What's my claim status?",
-    "Display sales data for this month",
-    "Which products are low in stock?",
-    "Show pending claims"
+    "Show me low stock products",
+    "What are my pending claims?",
+    "Display this month's sales performance",
+    "Which products are popular in Chennai?",
+    "Show warranty claims from last week"
   ];
 
-  const processQuery = (query: string): string => {
-    const lowerQuery = query.toLowerCase();
-    
-    // SKU queries
-    if (lowerQuery.includes('sku') || lowerQuery.includes('stock') || lowerQuery.includes('availability')) {
-      const results = searchSKU(query);
-      if (results.length > 0) {
-        const topResults = results.slice(0, 5);
-        return `Found ${results.length} SKUs matching your query:\n\n${topResults.map(sku => 
-          `• ${sku.name} (${sku.id})\n  Stock: ${sku.stock} units\n  Location: ${sku.warehouse}, ${sku.zone}\n  Price: ₹${sku.price.toLocaleString()}`
-        ).join('\n\n')}`;
-      }
-      return "No SKUs found matching your criteria. Please try a different search term.";
+  useEffect(() => {
+    // Check if API key exists
+    const existingKey = aiService.getApiKey();
+    if (!existingKey) {
+      setShowApiKeyInput(true);
     }
-    
-    // Claims queries
-    if (lowerQuery.includes('claim') || lowerQuery.includes('warranty') || lowerQuery.includes('return')) {
-      const results = searchClaims(query);
-      if (results.length > 0) {
-        const topResults = results.slice(0, 5);
-        return `Found ${results.length} claims:\n\n${topResults.map(claim => 
-          `• Claim ${claim.id}\n  Dealer: ${claim.dealerName}\n  Status: ${claim.status}\n  Amount: ₹${claim.amount.toLocaleString()}\n  Type: ${claim.type}`
-        ).join('\n\n')}`;
-      }
-      return "No claims found matching your criteria.";
-    }
-    
-    // Sales queries
-    if (lowerQuery.includes('sales') || lowerQuery.includes('revenue') || lowerQuery.includes('performance')) {
-      const results = searchSales(query);
-      if (results.length > 0) {
-        const topResults = results.slice(0, 5);
-        const totalAmount = results.reduce((sum, sale) => sum + sale.amount, 0);
-        return `Found ${results.length} sales records (Total: ₹${totalAmount.toLocaleString()}):\n\n${topResults.map(sale => 
-          `• ${sale.skuName}\n  Dealer: ${sale.dealerName}\n  Quantity: ${sale.quantity}\n  Amount: ₹${sale.amount.toLocaleString()}\n  Date: ${sale.date}`
-        ).join('\n\n')}`;
-      }
-      return "No sales data found matching your criteria.";
-    }
-    
-    return "I can help you with SKU availability, claims status, and sales data. Please try asking about inventory, claims, or sales performance.";
-  };
+  }, []);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
@@ -96,23 +64,73 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ userRole }) => {
     setInputMessage('');
     setIsLoading(true);
     
-    // Simulate processing delay
-    setTimeout(() => {
+    try {
+      // Use the AI service to process the query
+      const response = await aiService.processQuery(inputMessage, userRole);
+      
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
-        content: processQuery(inputMessage),
+        content: response,
         sender: 'bot',
         timestamp: new Date()
       };
       
       setMessages(prev => [...prev, botResponse]);
+    } catch (error) {
+      const errorResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "I apologize, but I encountered an issue processing your request. Please try again or contact support if the problem persists.",
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorResponse]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
+  };
+
+  const handleApiKeySubmit = () => {
+    if (apiKeyInput.trim()) {
+      aiService.setApiKey(apiKeyInput.trim());
+      setShowApiKeyInput(false);
+      setApiKeyInput('');
+      
+      // Add a confirmation message
+      const confirmationMessage: Message = {
+        id: Date.now().toString(),
+        content: "Great! I've saved your OpenAI API key. I can now provide more intelligent and context-aware responses. Feel free to ask me anything about your business data!",
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, confirmationMessage]);
+    }
   };
 
   const handleSuggestedQuery = (query: string) => {
     setInputMessage(query);
   };
+
+  if (dataLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (dataError) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Error loading data: {dataError}</p>
+          <Button onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -124,9 +142,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ userRole }) => {
               <Bot className="w-5 h-5 text-blue-600" />
               <span>AI Assistant</span>
               <Badge variant="secondary">{userRole}</Badge>
+              {aiService.getApiKey() && (
+                <Badge variant="outline" className="text-green-600">
+                  <Key className="w-3 h-3 mr-1" />
+                  Enhanced AI
+                </Badge>
+              )}
             </CardTitle>
             <CardDescription>
-              Ask me about SKU availability, claims, and sales data using natural language
+              Ask me about your business data using natural language. I'm connected to your live database!
             </CardDescription>
           </CardHeader>
           
@@ -142,7 +166,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ userRole }) => {
                     className={`max-w-[80%] p-3 rounded-lg ${
                       message.sender === 'user'
                         ? 'bg-blue-600 text-white'
-                        : 'bg-white text-gray-900 border'
+                        : 'bg-white text-gray-900 border shadow-sm'
                     }`}
                   >
                     <div className="flex items-start space-x-2">
@@ -156,7 +180,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ userRole }) => {
               
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-white border p-3 rounded-lg">
+                  <div className="bg-white border p-3 rounded-lg shadow-sm">
                     <div className="flex items-center space-x-2">
                       <Bot className="w-4 h-4 text-blue-600" />
                       <div className="flex space-x-1">
@@ -164,6 +188,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ userRole }) => {
                         <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                         <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                       </div>
+                      <span className="text-sm text-gray-500">Analyzing your data...</span>
                     </div>
                   </div>
                 </div>
@@ -175,7 +200,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ userRole }) => {
               <Input
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Ask about SKU availability, claims, or sales..."
+                placeholder="Ask about products, claims, sales, or anything else..."
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                 disabled={isLoading}
               />
@@ -187,13 +212,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ userRole }) => {
         </Card>
       </div>
       
-      {/* Suggested Queries */}
-      <div>
+      {/* Sidebar */}
+      <div className="space-y-4">
+        {/* Suggested Queries */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Lightbulb className="w-5 h-5 text-yellow-600" />
-              <span>Suggested Queries</span>
+              <span>Try asking...</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -202,7 +228,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ userRole }) => {
                 key={index}
                 variant="outline"
                 size="sm"
-                className="w-full text-left justify-start h-auto p-3"
+                className="w-full text-left justify-start h-auto p-3 hover:bg-blue-50"
                 onClick={() => handleSuggestedQuery(query)}
               >
                 {query}
@@ -211,21 +237,37 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ userRole }) => {
           </CardContent>
         </Card>
         
-        <Card className="mt-4">
-          <CardHeader>
-            <CardTitle className="text-sm">API Configuration</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Input
-              type="password"
-              placeholder="Enter OpenAI API Key (optional)"
-              className="text-xs"
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              Add your OpenAI API key for enhanced AI responses, or use local processing.
-            </p>
-          </CardContent>
-        </Card>
+        {/* API Key Configuration */}
+        {showApiKeyInput && (
+          <Card className="border-orange-200 bg-orange-50">
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center space-x-2">
+                <Key className="w-4 h-4" />
+                <span>Enhance AI Responses</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Input
+                type="password"
+                placeholder="Enter OpenAI API Key"
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                className="text-xs"
+              />
+              <div className="flex space-x-2">
+                <Button size="sm" onClick={handleApiKeySubmit} className="flex-1">
+                  Save
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowApiKeyInput(false)}>
+                  Skip
+                </Button>
+              </div>
+              <p className="text-xs text-gray-600">
+                Optional: Add your OpenAI API key for more intelligent, context-aware responses.
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
