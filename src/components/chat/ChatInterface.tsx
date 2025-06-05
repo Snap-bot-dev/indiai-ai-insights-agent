@@ -1,11 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MessageSquare, Settings, Key } from 'lucide-react';
+import { Send, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { aiService } from '@/services/aiService';
 import { useToast } from '@/hooks/use-toast';
 
@@ -38,8 +36,6 @@ What would you like to explore today?`,
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [apiKey, setApiKey] = useState(aiService.getApiKey() || '');
-  const [showApiDialog, setShowApiDialog] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -97,17 +93,6 @@ What would you like to explore today?`,
     }
   };
 
-  const handleApiKeySave = () => {
-    if (apiKey.trim()) {
-      aiService.setApiKey(apiKey.trim());
-      setShowApiDialog(false);
-      toast({
-        title: "API Key Saved! 🎉",
-        description: "OpenAI integration is now active for enhanced responses.",
-      });
-    }
-  };
-
   const formatMessage = (content: string) => {
     // Convert markdown-style formatting to HTML
     return content
@@ -126,38 +111,6 @@ What would you like to explore today?`,
           <MessageSquare className="w-5 h-5 text-blue-600" />
           <CardTitle>AI Business Assistant</CardTitle>
         </div>
-        <Dialog open={showApiDialog} onOpenChange={setShowApiDialog}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Key className="w-4 h-4" />
-              {aiService.getApiKey() ? 'Update' : 'Setup'} OpenAI
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>OpenAI API Configuration</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="apiKey">OpenAI API Key</Label>
-                <Input
-                  id="apiKey"
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk-..."
-                  className="mt-1"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Add your OpenAI API key for enhanced natural language processing and better responses.
-                </p>
-              </div>
-              <Button onClick={handleApiKeySave} className="w-full">
-                Save API Key
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </CardHeader>
       
       <CardContent className="flex-1 flex flex-col p-4 space-y-4 overflow-hidden">

@@ -82,12 +82,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const migrationResult = await migrateDataToSupabase();
       console.log('Migration result:', migrationResult);
 
-      // Load all data from Supabase using proper typing
+      // Load all data from Supabase
       const [skusResponse, claimsResponse, salesResponse, dealersResponse] = await Promise.all([
-        supabase.from('skus' as any).select('*'),
-        supabase.from('claims' as any).select('*'),
-        supabase.from('sales' as any).select('*'),
-        supabase.from('dealers' as any).select('*')
+        supabase.from('skus').select('*'),
+        supabase.from('claims').select('*'),
+        supabase.from('sales').select('*'),
+        supabase.from('dealers').select('*')
       ]);
 
       if (skusResponse.error) {
@@ -132,7 +132,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const searchSKU = async (query: string): Promise<SKU[]> => {
     try {
       const { data, error } = await supabase
-        .from('skus' as any)
+        .from('skus')
         .select('*')
         .or(`name.ilike.%${query}%,category.ilike.%${query}%,description.ilike.%${query}%`);
       
@@ -147,7 +147,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const searchClaims = async (query: string): Promise<Claim[]> => {
     try {
       const { data, error } = await supabase
-        .from('claims' as any)
+        .from('claims')
         .select('*')
         .or(`dealer_name.ilike.%${query}%,status.ilike.%${query}%,type.ilike.%${query}%`);
       
@@ -162,7 +162,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const searchSales = async (query: string): Promise<Sale[]> => {
     try {
       const { data, error } = await supabase
-        .from('sales' as any)
+        .from('sales')
         .select('*')
         .or(`dealer_name.ilike.%${query}%,sku_name.ilike.%${query}%,region.ilike.%${query}%,zone.ilike.%${query}%`);
       

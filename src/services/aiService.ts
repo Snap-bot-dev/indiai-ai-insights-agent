@@ -49,7 +49,7 @@ export class AIService {
       // Determine query type and search appropriate tables
       if (lowerQuery.includes('sku') || lowerQuery.includes('stock') || lowerQuery.includes('inventory') || lowerQuery.includes('product')) {
         const { data: skus, error } = await supabase
-          .from('skus' as any)
+          .from('skus')
           .select('*')
           .or(`name.ilike.%${query}%,category.ilike.%${query}%,description.ilike.%${query}%`)
           .limit(10);
@@ -60,7 +60,7 @@ export class AIService {
       
       if (lowerQuery.includes('claim') || lowerQuery.includes('warranty') || lowerQuery.includes('return')) {
         const { data: claims, error } = await supabase
-          .from('claims' as any)
+          .from('claims')
           .select('*')
           .or(`type.ilike.%${query}%,status.ilike.%${query}%`)
           .limit(10);
@@ -71,7 +71,7 @@ export class AIService {
       
       if (lowerQuery.includes('sale') || lowerQuery.includes('revenue') || lowerQuery.includes('performance')) {
         const { data: sales, error } = await supabase
-          .from('sales' as any)
+          .from('sales')
           .select('*')
           .limit(10)
           .order('date', { ascending: false });
@@ -82,9 +82,9 @@ export class AIService {
 
       // General search across all tables
       const [skusResult, claimsResult, salesResult] = await Promise.all([
-        supabase.from('skus' as any).select('*').limit(3),
-        supabase.from('claims' as any).select('*').limit(3),
-        supabase.from('sales' as any).select('*').limit(3)
+        supabase.from('skus').select('*').limit(3),
+        supabase.from('claims').select('*').limit(3),
+        supabase.from('sales').select('*').limit(3)
       ]);
 
       const combinedData = {

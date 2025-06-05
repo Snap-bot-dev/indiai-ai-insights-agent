@@ -77,7 +77,7 @@ export const migrateDataToSupabase = async () => {
     console.log('Starting data migration...');
     
     // Check if data already exists
-    const { data: existingDealers, error: checkError } = await supabase.from('dealers' as any).select('id').limit(1);
+    const { data: existingDealers, error: checkError } = await supabase.from('dealers').select('id').limit(1);
     
     if (checkError) {
       console.log('Tables may not exist yet or migration needed. Error:', checkError.message);
@@ -97,7 +97,7 @@ export const migrateDataToSupabase = async () => {
 
     console.log('Inserting dealers...');
     // Insert dealers
-    const { error: dealersError } = await supabase.from('dealers' as any).insert(dealers);
+    const { error: dealersError } = await supabase.from('dealers').insert(dealers);
     if (dealersError) {
       console.error('Dealers insert error:', dealersError);
       throw dealersError;
@@ -106,7 +106,7 @@ export const migrateDataToSupabase = async () => {
 
     console.log('Inserting SKUs...');
     // Insert SKUs
-    const { error: skusError } = await supabase.from('skus' as any).insert(skus);
+    const { error: skusError } = await supabase.from('skus').insert(skus);
     if (skusError) {
       console.error('SKUs insert error:', skusError);
       throw skusError;
@@ -115,7 +115,7 @@ export const migrateDataToSupabase = async () => {
 
     console.log('Inserting claims...');
     // Insert claims
-    const { error: claimsError } = await supabase.from('claims' as any).insert(claims);
+    const { error: claimsError } = await supabase.from('claims').insert(claims);
     if (claimsError) {
       console.error('Claims insert error:', claimsError);
       throw claimsError;
@@ -124,7 +124,7 @@ export const migrateDataToSupabase = async () => {
 
     console.log('Inserting sales...');
     // Insert sales
-    const { error: salesError } = await supabase.from('sales' as any).insert(sales);
+    const { error: salesError } = await supabase.from('sales').insert(sales);
     if (salesError) {
       console.error('Sales insert error:', salesError);
       throw salesError;
@@ -184,7 +184,7 @@ const generateEmbeddings = async (skus: any[], claims: any[], sales: any[]) => {
     const batchSize = 50;
     for (let i = 0; i < documentsWithEmbeddings.length; i += batchSize) {
       const batch = documentsWithEmbeddings.slice(i, i + batchSize);
-      const { error } = await supabase.from('document_embeddings' as any).insert(batch);
+      const { error } = await supabase.from('document_embeddings').insert(batch);
       if (error) {
         console.error('Error inserting embeddings batch:', error);
       }
