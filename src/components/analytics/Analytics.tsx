@@ -1,20 +1,30 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useData } from '../../contexts/DataContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, DollarSign, Package, Users } from 'lucide-react';
+import { TrendingUp, DollarSign, Package, Users, RefreshCw } from 'lucide-react';
 
 interface AnalyticsProps {
   userRole?: string;
 }
 
 const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
-  const { skus, claims, sales, dealers } = useData();
+  const { skus, claims, sales, dealers, loading } = useData();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p>Loading analytics data...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Generate analytics data
   const salesByMonth = sales.reduce((acc, sale) => {
     const month = new Date(sale.date).toLocaleString('default', { month: 'short', year: '2-digit' });
-    acc[month] = (acc[month] || 0) + sale.amount;
+    acc[month] = (acc[month] || 0) + Number(sale.amount);
     return acc;
   }, {} as Record<string, number>);
 
@@ -24,7 +34,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
   }));
 
   const regionSales = sales.reduce((acc, sale) => {
-    acc[sale.region] = (acc[sale.region] || 0) + sale.amount;
+    acc[sale.region] = (acc[sale.region] || 0) + Number(sale.amount);
     return acc;
   }, {} as Record<string, number>);
 
@@ -61,8 +71,8 @@ const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{(sales.reduce((sum, sale) => sum + sale.amount, 0) / 10000000).toFixed(1)}Cr</div>
-            <p className="text-xs text-muted-foreground">+12.5% from last month</p>
+            <div className="text-2xl font-bold">₹{(sales.reduce((sum, sale) => sum + Number(sale.amount), 0) / 10000000).toFixed(1)}Cr</div>
+            <p className="text-xs text-muted-foreground">From database records</p>
           </CardContent>
         </Card>
         
@@ -84,7 +94,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{claims.filter(c => c.status === 'Pending').length}</div>
-            <p className="text-xs text-muted-foreground">-8% from last week</p>
+            <p className="text-xs text-muted-foreground">Total: {claims.length} claims</p>
           </CardContent>
         </Card>
         
@@ -95,7 +105,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{dealers.filter(d => d.status === 'Active').length}</div>
-            <p className="text-xs text-muted-foreground">95% active rate</p>
+            <p className="text-xs text-muted-foreground">Out of {dealers.length} total</p>
           </CardContent>
         </Card>
       </div>
@@ -106,7 +116,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
         <Card>
           <CardHeader>
             <CardTitle>Monthly Sales Trend</CardTitle>
-            <CardDescription>Revenue over the past 12 months (in ₹Cr)</CardDescription>
+            <CardDescription>Revenue over time (in ₹Cr)</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -173,7 +183,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ userRole }) => {
         <Card>
           <CardHeader>
             <CardTitle>Stock Levels</CardTitle>
-            <CardDescription>Current inventory levels for top products</CardDescription>
+            <CardDescription>Current inventory levels for products</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>

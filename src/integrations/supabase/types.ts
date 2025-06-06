@@ -9,7 +9,170 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      claims: {
+        Row: {
+          amount: number
+          created_at: string | null
+          dealer_id: string | null
+          dealer_name: string
+          id: string
+          resolved_date: string | null
+          status: string
+          submitted_date: string
+          type: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          dealer_id?: string | null
+          dealer_name: string
+          id: string
+          resolved_date?: string | null
+          status: string
+          submitted_date: string
+          type: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          dealer_id?: string | null
+          dealer_name?: string
+          id?: string
+          resolved_date?: string | null
+          status?: string
+          submitted_date?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claims_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dealers: {
+        Row: {
+          city: string
+          contact: string
+          id: string
+          name: string
+          region: string
+          status: string
+          zone: string
+        }
+        Insert: {
+          city: string
+          contact: string
+          id: string
+          name: string
+          region: string
+          status: string
+          zone: string
+        }
+        Update: {
+          city?: string
+          contact?: string
+          id?: string
+          name?: string
+          region?: string
+          status?: string
+          zone?: string
+        }
+        Relationships: []
+      }
+      sales: {
+        Row: {
+          amount: number
+          created_at: string | null
+          date: string
+          dealer_id: string | null
+          dealer_name: string
+          id: string
+          quantity: number
+          region: string
+          sku_id: string | null
+          sku_name: string
+          zone: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          date: string
+          dealer_id?: string | null
+          dealer_name: string
+          id: string
+          quantity: number
+          region: string
+          sku_id?: string | null
+          sku_name: string
+          zone: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          date?: string
+          dealer_id?: string | null
+          dealer_name?: string
+          id?: string
+          quantity?: number
+          region?: string
+          sku_id?: string | null
+          sku_name?: string
+          zone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_sku_id_fkey"
+            columns: ["sku_id"]
+            isOneToOne: false
+            referencedRelation: "skus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skus: {
+        Row: {
+          category: string
+          description: string | null
+          id: string
+          name: string
+          price: number
+          stock: number
+          warehouse: string
+          zone: string
+        }
+        Insert: {
+          category: string
+          description?: string | null
+          id: string
+          name: string
+          price: number
+          stock: number
+          warehouse: string
+          zone: string
+        }
+        Update: {
+          category?: string
+          description?: string | null
+          id?: string
+          name?: string
+          price?: number
+          stock?: number
+          warehouse?: string
+          zone?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

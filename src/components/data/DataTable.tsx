@@ -1,18 +1,18 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useData } from '../../contexts/DataContext';
-import { Search, Package, FileText, TrendingUp, Users } from 'lucide-react';
+import { Search, Package, FileText, TrendingUp, Users, RefreshCw } from 'lucide-react';
 
 interface DataTableProps {
   userRole?: string;
 }
 
 const DataTable: React.FC<DataTableProps> = ({ userRole }) => {
-  const { skus, claims, sales, dealers } = useData();
+  const { skus, claims, sales, dealers, loading, refreshData } = useData();
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredSKUs = skus.filter(sku => 
@@ -23,14 +23,14 @@ const DataTable: React.FC<DataTableProps> = ({ userRole }) => {
 
   const filteredClaims = claims.filter(claim =>
     claim.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    claim.dealerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    claim.dealer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     claim.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const filteredSales = sales.filter(sale =>
     sale.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sale.dealerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sale.skuName.toLowerCase().includes(searchTerm.toLowerCase())
+    sale.dealer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    sale.sku_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const filteredDealers = dealers.filter(dealer =>
@@ -50,19 +50,36 @@ const DataTable: React.FC<DataTableProps> = ({ userRole }) => {
     return <Badge variant={variants[status] || 'outline'}>{status}</Badge>;
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p>Loading data from database...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Search */}
+      {/* Search and Refresh */}
       <Card>
         <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search across all data..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex items-center space-x-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search across all data..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Button onClick={refreshData} variant="outline" size="sm">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -122,7 +139,7 @@ const DataTable: React.FC<DataTableProps> = ({ userRole }) => {
                             {sku.stock}
                           </span>
                         </td>
-                        <td className="py-2">₹{sku.price.toLocaleString()}</td>
+                        <td className="py-2">₹{Number(sku.price).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -156,11 +173,11 @@ const DataTable: React.FC<DataTableProps> = ({ userRole }) => {
                     {filteredClaims.slice(0, 50).map((claim) => (
                       <tr key={claim.id} className="border-b">
                         <td className="py-2 font-mono text-sm">{claim.id}</td>
-                        <td className="py-2">{claim.dealerName}</td>
+                        <td className="py-2">{claim.dealer_name}</td>
                         <td className="py-2">{claim.type}</td>
-                        <td className="py-2">₹{claim.amount.toLocaleString()}</td>
+                        <td className="py-2">₹{Number(claim.amount).toLocaleString()}</td>
                         <td className="py-2">{getStatusBadge(claim.status)}</td>
-                        <td className="py-2">{claim.submittedDate}</td>
+                        <td className="py-2">{claim.submitted_date}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -195,10 +212,10 @@ const DataTable: React.FC<DataTableProps> = ({ userRole }) => {
                     {filteredSales.slice(0, 50).map((sale) => (
                       <tr key={sale.id} className="border-b">
                         <td className="py-2 font-mono text-sm">{sale.id}</td>
-                        <td className="py-2">{sale.dealerName}</td>
-                        <td className="py-2">{sale.skuName}</td>
+                        <td className="py-2">{sale.dealer_name}</td>
+                        <td className="py-2">{sale.sku_name}</td>
                         <td className="py-2">{sale.quantity}</td>
-                        <td className="py-2">₹{sale.amount.toLocaleString()}</td>
+                        <td className="py-2">₹{Number(sale.amount).toLocaleString()}</td>
                         <td className="py-2">{sale.region}</td>
                         <td className="py-2">{sale.date}</td>
                       </tr>
