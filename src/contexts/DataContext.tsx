@@ -10,25 +10,25 @@ interface SKU {
   warehouse: string;
   stock: number;
   price: number;
-  description: string;
+  description: string | null;
 }
 
 interface Claim {
   id: string;
-  dealer_id: string;
+  dealer_id: string | null;
   dealer_name: string;
   amount: number;
-  status: 'Pending' | 'Approved' | 'Rejected';
+  status: string;
   type: string;
   submitted_date: string;
-  resolved_date?: string;
+  resolved_date: string | null;
 }
 
 interface Sale {
   id: string;
-  dealer_id: string;
+  dealer_id: string | null;
   dealer_name: string;
-  sku_id: string;
+  sku_id: string | null;
   sku_name: string;
   quantity: number;
   amount: number;
@@ -44,7 +44,7 @@ interface Dealer {
   zone: string;
   city: string;
   contact: string;
-  status: 'Active' | 'Inactive';
+  status: string;
 }
 
 interface DataContextType {

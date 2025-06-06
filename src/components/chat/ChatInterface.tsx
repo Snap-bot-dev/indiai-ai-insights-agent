@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,7 +59,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ userRole }) => {
       if (results.length > 0) {
         const topResults = results.slice(0, 5);
         return `Found ${results.length} claims:\n\n${topResults.map(claim => 
-          `• Claim ${claim.id}\n  Dealer: ${claim.dealerName}\n  Status: ${claim.status}\n  Amount: ₹${claim.amount.toLocaleString()}\n  Type: ${claim.type}`
+          `• Claim ${claim.id}\n  Dealer: ${claim.dealer_name}\n  Status: ${claim.status}\n  Amount: ₹${claim.amount.toLocaleString()}\n  Type: ${claim.type}`
         ).join('\n\n')}`;
       }
       return "No claims found matching your criteria.";
@@ -73,7 +72,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ userRole }) => {
         const topResults = results.slice(0, 5);
         const totalAmount = results.reduce((sum, sale) => sum + sale.amount, 0);
         return `Found ${results.length} sales records (Total: ₹${totalAmount.toLocaleString()}):\n\n${topResults.map(sale => 
-          `• ${sale.skuName}\n  Dealer: ${sale.dealerName}\n  Quantity: ${sale.quantity}\n  Amount: ₹${sale.amount.toLocaleString()}\n  Date: ${sale.date}`
+          `• ${sale.sku_name}\n  Dealer: ${sale.dealer_name}\n  Quantity: ${sale.quantity}\n  Amount: ₹${sale.amount.toLocaleString()}\n  Date: ${sale.date}`
         ).join('\n\n')}`;
       }
       return "No sales data found matching your criteria.";
